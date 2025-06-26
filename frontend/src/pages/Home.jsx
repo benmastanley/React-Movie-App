@@ -1,24 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MovieCard from "../components/MovieCard";
+import "../css/Home.css"; // Assuming you have a CSS file for styling
+import { fetchMovies, fetchTrendingMovies } from "../services/api";
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const movies = [
-    { id: 1, title: "John Wick", release_date: "2020" },
-    { id: 2, title: "Terminator", release_date: "1999" },
-    { id: 3, title: "The Matrix", release_date: "1998" },
-  ];
+  const [movies, setMovies] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [favourites, setFavourites] = useState([]);
 
-  const handleSearch = (e) => {
-    alert(searchQuery);
+  const handleSearch = async (e) => {
     e.preventDefault();
+    if (!searchQuery.trim()) return;
+    if (loading) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const searchResults = await fetchMovies(searchQuery);
+      setMovies(searchResults);
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch movies:", err);
+      setError("Failed to fetch movies");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    const loadTrendingMovies = async () => {
+      try {
+        const trendingMovies = await fetchTrendingMovies();
+        setMovies(trendingMovies);
+      } catch (error) {
+        console.error("Failed to fetch trending movies:", error);
+        setError("Failed to fetch trending movies");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTrendingMovies();
+  }, []);
 
   return (
     <div className="home">
       <form onSubmit={handleSearch} className="search-form">
         <input
+          className="search-input"
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -28,12 +60,16 @@ function Home() {
           Search
         </button>
       </form>
-
-      <div className="movies-grid">
-        {movies.map((movie) => (
-          <MovieCard movie={movie} key={movie.id} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="loading">Loading...</div>
+      ) : (
+        <div className="movies-grid">
+          {movies.map((movie) => (
+            <MovieCard movie={movie} key={movie.id} />
+          ))}
+        </div>
+      )}
+      {error && <div className="error-message">{error}</div>}
     </div>
   );
 }
